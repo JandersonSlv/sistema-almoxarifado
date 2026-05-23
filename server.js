@@ -26,7 +26,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(
     `\x1b[32m✅ Servidor rodando com sucesso!\x1b[0m\n` + // Verde
-    `\x1b[36m🌐 Acesse em: http://localhost:${PORT}/\x1b[0m\n` + // Ciano
+    `\x1b[36m🌐 Acesse em: http://localhost:${PORT}/login.html\x1b[0m\n` + // Ciano
     `\x1b[33m🔑 Use: admin@teste.com // para login\x1b[0m\n` + // Amarelo
     `\x1b[33m🔑 Use: 123456 // senha\x1b[0m` // Amarelo
   );
