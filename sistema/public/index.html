@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Almoxarifado</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+  
+  <div class="sidebar">
+    <div class="logo">
+      <div class="logo-title"><i class="ti ti-tools"></i> Almoxarifado</div>
+      <div class="logo-sub">Gestão de estoque</div>
+    </div>
+    
+    <div class="nav-links">
+        <div class="nav-item active" onclick="navTo('dashboard', this)"><i class="ti ti-layout-dashboard"></i> Dashboard</div>
+        <div class="nav-item" onclick="navTo('produtos', this)"><i class="ti ti-package"></i> Produtos</div>
+        <div class="nav-item" onclick="navTo('movimentacao', this)"><i class="ti ti-arrows-exchange"></i> Movimentação</div>
+        <div class="nav-item" onclick="navTo('historico', this)"><i class="ti ti-history"></i> Histórico</div>
+        <div class="nav-item" id="nav-alertas" onclick="navTo('alertas', this)">
+          <i class="ti ti-bell"></i> Alertas
+          <span class="badge-alert" id="alert-count">0</span>
+        </div>
+    </div>
+
+    <div class="user-footer" style="margin-top: auto; padding: 20px; border-top: 1px solid var(--border-md);">
+        <div style="font-size: 13px; margin-bottom: 10px;">Olá, <strong id="nome-utilizador">...</strong></div>
+        <button class="btn" onclick="fazerLogout()" style="width: 100%; background: var(--red-light); color: var(--red); border: none;">
+            <i class="ti ti-logout"></i> Sair
+        </button>
+    </div>
+  </div>
+  <div class="main">
+    
+    <div class="topbar">
+      <span class="page-title" id="page-title">Dashboard</span>
+    </div>
+
+    <div class="content">
+
+      <div class="section active" id="sec-dashboard">
+        <div class="cards-grid">
+          <div class="metric-card">
+            <div class="metric-label">Total de itens</div>
+            <div class="metric-value" id="m-total">0</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Entradas hoje</div>
+            <div class="metric-value success" id="m-entradas">0</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Saídas hoje</div>
+            <div class="metric-value danger" id="m-saidas">0</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Alertas ativos</div>
+            <div class="metric-value warning" id="m-alertas">0</div>
+          </div>
+        </div>
+        <div id="alert-banners"></div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Últimas movimentações</span>
+            <button class="btn" onclick="navTo('historico', null)">Ver tudo</button>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Produto</th><th>Tipo</th><th>Qtd</th><th>Responsável</th><th>Data/hora</th></tr>
+            </thead>
+            <tbody id="dash-hist"></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Estoque atual</span>
+            <button class="btn" onclick="navTo('produtos', null)">Gerenciar</button>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Produto</th><th>Categoria</th><th>Qtd atual</th><th>Mínimo</th><th>Status</th></tr>
+            </thead>
+            <tbody id="dash-produtos"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="section" id="sec-produtos">
+        <div class="card-header" style="margin-bottom:14px; display: flex; justify-content: space-between; align-items: center;">
+          <input type="text" id="busca-produto" onkeyup="renderProdutos()" placeholder="Buscar produto..." style="padding: 8px 12px; border: 1px solid var(--border-md); border-radius: var(--radius-md); width: 300px; font-family: inherit;">
+          <button class="btn primary" onclick="openModalProduto()"><i class="ti ti-plus"></i> Novo produto</button>
+        </div>
+        <div class="card">
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th><th>Categoria</th><th>Material</th>
+                <th>Tam./Peso</th><th>Características</th>
+                <th>Qtd</th><th>Mín.</th><th>Status</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="tbl-produtos"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="section" id="sec-movimentacao">
+        <div class="card" style="max-width:520px">
+          <div class="card-header">
+            <span class="card-title" id="mov-title">Registrar movimentação</span>
+          </div>
+          <div class="form-group">
+            <label>Tipo de movimentação</label>
+            <select id="mov-tipo" onchange="updateMovTipo()">
+              <option value="entrada">Entrada</option>
+              <option value="saida">Saída</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Produto</label>
+            <select id="mov-produto"><option value="">Selecione...</option></select>
+          </div>
+          <div class="form-group" id="mov-saldo-box" style="display:none">
+            <label>Saldo atual</label>
+            <input type="text" id="mov-saldo" readonly style="background:var(--bg-secondary)">
+          </div>
+          <div class="form-group">
+            <label>Quantidade</label>
+            <input type="number" id="mov-qtd" min="1" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label>Responsável</label>
+            <input type="text" id="mov-resp" placeholder="Nome completo">
+          </div>
+          <div class="form-group">
+            <label>Data e Hora da Movimentação</label>
+            <input type="datetime-local" id="mov-data" required>
+          </div>
+          <div class="form-group">
+            <label>Observação (opcional)</label>
+            <textarea id="mov-obs" rows="2" placeholder="Motivo, número de ordem, etc."></textarea>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn primary" onclick="registrarMov()" id="btn-mov">Registrar entrada</button>
+            <button class="btn" onclick="limparMov()">Limpar</button>
+          </div>
+          <div id="mov-feedback" style="margin-top:12px;font-size:13px"></div>
+        </div>
+      </div>
+
+      <div class="section" id="sec-historico">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Histórico de movimentações</span>
+            <div style="display:flex;gap:8px">
+              <select id="hist-filtro-tipo" onchange="renderHistoricoFiltro()" style="font-size:13px;padding:6px 10px;border:0.5px solid var(--border-md);border-radius:var(--radius-md);background:var(--bg-primary);color:var(--text-primary);font-family:inherit">
+                <option value="">Todos</option>
+                <option value="entrada">Entradas</option>
+                <option value="saida">Saídas</option>
+              </select>
+              <select id="hist-filtro-prod" onchange="renderHistoricoFiltro()" style="font-size:13px;padding:6px 10px;border:0.5px solid var(--border-md);border-radius:var(--radius-md);background:var(--bg-primary);color:var(--text-primary);font-family:inherit">
+                <option value="">Todos os produtos</option>
+              </select>
+            </div>
+          </div>
+          <div id="hist-list"></div>
+        </div>
+      </div>
+
+      <div class="section" id="sec-alertas">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Alertas de estoque</span></div>
+          <div id="alertas-list"></div>
+        </div>
+      </div>
+
+    </div> </div> </div> <div class="modal-bg" id="modal-produto">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-prod-title">Novo produto</span>
+      <button class="close-btn" onclick="closeModalProduto()" aria-label="Fechar">&times;</button>
+    </div>
+    <div class="form-group">
+      <label>Nome do produto</label>
+      <input type="text" id="prod-nome" placeholder="Ex: Martelo de borracha">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Categoria</label>
+        <select id="prod-cat">
+          <option>Martelo</option>
+          <option>Chave de fenda</option>
+          <option>Alicate</option>
+          <option>Chave inglesa</option>
+          <option>Serra</option>
+          <option>Outro</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Material principal</label>
+        <input type="text" id="prod-material" placeholder="Ex: Aço, borracha...">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Material do cabo</label>
+        <input type="text" id="prod-cabo" placeholder="Ex: Fibra, madeira...">
+      </div>
+      <div class="form-group">
+        <label>Tamanho</label>
+        <input type="text" id="prod-tamanho" placeholder="Ex: 30cm, P/M/G">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Peso (g)</label>
+        <input type="number" id="prod-peso" placeholder="Ex: 500">
+      </div>
+      <div class="form-group">
+        <label>Estoque mínimo</label>
+        <input type="number" id="prod-minimo" placeholder="Ex: 5" min="0">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Características especiais</label>
+      <input type="text" id="prod-carac" placeholder="Ex: Revestimento isolante, ponta imantada...">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Quantidade inicial</label>
+        <input type="number" id="prod-qtd" placeholder="0" min="0">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn primary" onclick="salvarProduto()">Salvar produto</button>
+      <button class="btn" onclick="closeModalProduto()">Cancelar</button>
+      
+      <button class="btn" id="btn-excluir" style="background: var(--red-light); color: var(--red); margin-left: auto; display: none;" onclick="deletarProduto(editingId)">
+        <i class="ti ti-trash"></i> Excluir
+      </button>
+    </div>
+    <div id="prod-feedback" style="margin-top:10px;font-size:13px"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
