@@ -4,6 +4,25 @@ const usuario = localStorage.getItem('usuarioLogado');
 if (!usuario) {
     // Se não tiver, expulsa para a tela de login
     window.location.href = 'login.html';
+} else {
+    // COMO VOCÊ SALVOU COMO JSON, PRECISAMOS CONVERTER DE VOLTA
+    const dadosUsuario = JSON.parse(usuario);
+    
+    // Espera a tela carregar para colocar o nome lá em cima
+    document.addEventListener('DOMContentLoaded', () => {
+        const spanNome = document.getElementById('nome-utilizador');
+        if (spanNome && dadosUsuario.usuario && dadosUsuario.usuario.nome) {
+            spanNome.textContent = dadosUsuario.usuario.nome;
+        }
+    });
+}
+
+// FUNÇÃO DE LOGOUT (Chamada pelo botão Sair do HTML que fizemos antes)
+function fazerLogout() {
+    if (confirm("Deseja realmente sair do sistema?")) {
+        localStorage.removeItem('usuarioLogado'); // Tira o crachá
+        window.location.href = 'login.html'; // Volta pro login
+    }
 }
 
 
@@ -160,7 +179,18 @@ function renderDashboard() {
 
 function renderProdutos() {
     const tb = document.getElementById('tbl-produtos');
-    tb.innerHTML = produtos.map(p => `<tr>
+    
+    // Pega o texto da barra de busca (se ela existir na tela) e transforma em minúsculas
+    const inputBusca = document.getElementById('busca-produto');
+    const termo = inputBusca ? inputBusca.value.toLowerCase() : '';
+
+    // Filtra os produtos. Se o termo estiver vazio, ele mostra todos!
+    const produtosFiltrados = produtos.filter(p => 
+        p.nome.toLowerCase().includes(termo)
+    );
+
+    // Renderiza a tabela usando a lista filtrada
+    tb.innerHTML = produtosFiltrados.map(p => `<tr>
     <td><strong>${p.nome}</strong></td>
     <td>${p.cat}</td>
     <td>${p.material}</td>
@@ -175,6 +205,12 @@ function renderProdutos() {
       </button>
     </td>
   </tr>`).join('');
+  
+    // Mensagem de estado vazio caso a busca não encontre nada
+    if (produtosFiltrados.length === 0) {
+        tb.innerHTML = '<tr><td colspan="9" class="empty-state">Nenhum produto encontrado.</td></tr>';
+    }
+
     updateAlertBadge();
 }
 
@@ -296,8 +332,17 @@ async function deletarProduto(id) {
 
 function initMov(tipo) {
     const sel = document.getElementById('mov-produto');
+    
+    // ALGORITMO DE ORDENAÇÃO ALFABÉTICA (Exigência da Entrega 7)
+    // Cria uma cópia do array de produtos e ordena pelo nome (A-Z)
+    const produtosOrdenados = [...produtos].sort((a, b) => {
+        if (a.nome.toLowerCase() < b.nome.toLowerCase()) return -1;
+        if (a.nome.toLowerCase() > b.nome.toLowerCase()) return 1;
+        return 0;
+    });
+
     sel.innerHTML = '<option value="">Selecione...</option>' +
-        produtos.map(p => `<option value="${p.id}">${p.nome} (${p.qtd} un.)</option>`).join('');
+        produtosOrdenados.map(p => `<option value="${p.id}">${p.nome} (${p.qtd} un.)</option>`).join('');
 
     if (tipo) document.getElementById('mov-tipo').value = tipo;
     updateMovTipo();
@@ -306,13 +351,19 @@ function initMov(tipo) {
     document.getElementById('mov-qtd').value = '';
     document.getElementById('mov-resp').value = '';
     document.getElementById('mov-obs').value = '';
+    
+    // Preenche a data atual automaticamente no novo campo, mas deixa o usuário mudar
+    const agora = new Date();
+    agora.setMinutes(agora.getMinutes() - agora.getTimezoneOffset());
+    document.getElementById('mov-data').value = agora.toISOString().slice(0, 16);
+    
     document.getElementById('mov-feedback').textContent = '';
 
     sel.onchange = function () {
         const pid = parseInt(this.value);
         const p = produtos.find(x => x.id === pid);
         if (p) {
-            document.getElementById('mov-saldo').value = p.qtd + ' unidades';
+            document.getElementById('mov-saldo').value = p.qtd + ' unidades (Mín: ' + p.min + ')';
             document.getElementById('mov-saldo-box').style.display = 'block';
         } else {
             document.getElementById('mov-saldo-box').style.display = 'none';
@@ -333,17 +384,29 @@ async function registrarMov() {
     const resp = document.getElementById('mov-resp').value.trim();
     const tipo = document.getElementById('mov-tipo').value;
     const obs = document.getElementById('mov-obs').value.trim();
+    const dataMov = document.getElementById('mov-data').value; // Captura a data
     const fb = document.getElementById('mov-feedback');
 
     if (!pid) { fb.innerHTML = '<span style="color:var(--red)">Selecione um produto.</span>'; return; }
     if (!qtd || qtd < 1) { fb.innerHTML = '<span style="color:var(--red)">Informe uma quantidade válida.</span>'; return; }
     if (!resp) { fb.innerHTML = '<span style="color:var(--red)">Informe o responsável.</span>'; return; }
+    if (!dataMov) { fb.innerHTML = '<span style="color:var(--red)">Informe a data da movimentação.</span>'; return; }
 
-    // Impede a saída se não tiver saldo (validação no Front)
     const p = produtos.find(x => x.id === pid);
+    
+    // Impede a saída se não tiver saldo
     if (tipo === 'saida' && qtd > p.qtd) {
         fb.innerHTML = `<span style="color:var(--red)">Saldo insuficiente. Disponível: ${p.qtd} un.</span>`;
         return;
+    }
+
+    // ALERTA DE ESTOQUE MÍNIMO (Exigência da Entrega 7)
+    if (tipo === 'saida') {
+        const saldoPosSaida = p.qtd - qtd;
+        if (saldoPosSaida < p.min) {
+            // Emite um alerta nativo do navegador para o usuário
+            alert(`⚠️ ALERTA AUTOMÁTICO: A saída deste produto deixará o estoque (${saldoPosSaida} un.) abaixo do nível mínimo configurado (${p.min} un.)!`);
+        }
     }
 
     const payload = {
@@ -351,7 +414,8 @@ async function registrarMov() {
         tipo: tipo,
         quantidade: qtd,
         responsavel: resp,
-        observacao: obs
+        observacao: obs,
+        data_hora: dataMov // Envia a data para o backend
     };
 
     try {
