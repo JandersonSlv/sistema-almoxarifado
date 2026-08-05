@@ -1,21 +1,25 @@
 // controllers/authController.js
+const db = require('../config/db'); // ATENÇÃO: Ajuste este caminho se o seu arquivo de conexão com o banco tiver outro nome (ex: '../config/db')
+
 const login = async (req, res) => {
     try {
         const { email, senha } = req.body;
 
-        // Validando com as credenciais padrão do seu sistema
-        if (email === 'admin@teste.com' && senha === '123456') {
-            
-            // Se estiver correto, responde com sucesso e os dados do usuário
+        // Validando com os usuários cadastrados no banco de dados MySQL
+        const sql = 'SELECT * FROM usuarios WHERE email = ? AND senha = ?';
+        const [usuarios] = await db.query(sql, [email, senha]);
+
+        if (usuarios.length > 0) {
+            // Se encontrar o usuário, responde com sucesso e puxa o NOME REAL do banco
             return res.status(200).json({
                 mensagem: 'Login realizado com sucesso!',
                 usuario: {
-                    nome: 'Administrador',
-                    email: email
+                    nome: usuarios[0].nome, 
+                    email: usuarios[0].email
                 }
             });
         } else {
-            // Se estiver errado, responde com o código 401 (Não autorizado)
+            // Se não encontrar ou a senha estiver errada, responde com 401
             return res.status(401).json({ error: 'E-mail ou senha incorretos.' });
         }
 
